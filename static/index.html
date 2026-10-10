@@ -164,7 +164,10 @@
             <div class="quiz-player-header">
               <div class="quiz-meta-row">
                 <span class="q-badge" id="q-counter-text">Question 1 of 5</span>
-                <span class="difficulty-badge" id="q-difficulty-badge">Medium</span>
+                <div class="quiz-meta-tags">
+                  <span class="demo-mode-badge" id="demo-mode-badge" style="display: none;">Demo mode</span>
+                  <span class="difficulty-badge" id="q-difficulty-badge">Medium</span>
+                </div>
               </div>
               <div class="progress-track">
                 <div class="progress-fill" id="quiz-progress-fill"></div>
@@ -202,7 +205,10 @@
     <section id="score" class="section score-section" aria-labelledby="score-title">
       <div class="safe-zone score-container">
         <div class="glass-card score-card" id="score-card">
-          <div class="score-badge">Session Summary</div>
+          <div class="score-header-row">
+            <div class="score-badge">Session Summary</div>
+            <span class="demo-mode-badge" id="score-demo-badge" style="display: none;">Demo mode</span>
+          </div>
           
           <div class="score-display">
             <span class="score-number" id="final-score-val">0</span>

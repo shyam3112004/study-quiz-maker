@@ -8,7 +8,8 @@ A focused, single-page web app where students paste study notes or syllabus topi
 
 ## 📖 Overview
 
-- **Single Provider**: Anthropic Claude API only (`CLAUDE_MODEL`).
+- **Provider**: Google Gemini API via the official `google-genai` Python SDK (`GEMINI_MODEL`, e.g., `gemini-3.5-flash-lite` or `gemini-3.8-flash`).
+- **Offline Demo Fallback**: When no API key is configured, an interactive sample quiz is automatically served with a small "Demo mode" indicator.
 - **Stateless (v1)**: Fast, free, and zero-friction for students—no sign-up or database required.
 - **Atmospheric Visual Design**: Warm cinematic study-desk aesthetic with dedicated full-screen background imagery for each section (Home, Paste Notes, Quiz, Score).
 
@@ -17,7 +18,7 @@ A focused, single-page web app where students paste study notes or syllabus topi
 ## 🏗️ Architecture & Technical Stack
 
 - **Backend**: Python 3.10+, [FastAPI](https://fastapi.tiangolo.com/), [Uvicorn](https://www.uvicorn.org/)
-- **AI Engine**: [Anthropic Claude API](https://docs.anthropic.com/) (server-side only; keys are never exposed to the client)
+- **AI Engine**: [Google Gemini API](https://ai.google.dev/) using the official `google-genai` Python SDK with strict JSON schema enforcement (server-side only; keys are never exposed to the client)
 - **Rate Limiting**: [SlowAPI](https://github.com/laurentS/slowapi) (per-IP rate limiting, default 10 quizzes/hour)
 - **Frontend**: Clean Vanilla HTML5, CSS3, and JavaScript (single page)
 - **Visuals**: Section background photography optimized for Desktop (16:9 WebP) and Mobile (9:16 WebP)
@@ -61,15 +62,15 @@ pip install -r requirements.txt
 ```
 
 ### 3. Environment Variables
-Copy `.env.example` to `.env` and fill in your Anthropic API key:
+Copy `.env.example` to `.env` and fill in your Gemini API key:
 ```bash
 cp .env.example .env
 ```
 
 | Variable | Description | Default |
 |---|---|---|
-| `ANTHROPIC_API_KEY` | Your Anthropic Claude API key | *Required for generation* |
-| `CLAUDE_MODEL` | Claude model identifier | `claude-3-5-sonnet-20241022` |
+| `GEMINI_API_KEY` | Your Google Gemini API key | *Required for live generation; fallback demo mode used if unset* |
+| `GEMINI_MODEL` | Gemini model identifier | `gemini-3.5-flash-lite` |
 | `RATE_LIMIT_PER_HOUR` | Max quiz requests per IP per hour | `10` |
 | `MAX_NOTES_CHARS` | Maximum character length for pasted notes | `6000` |
 | `PORT` | Local server port | `8000` |
@@ -80,7 +81,15 @@ uvicorn main:app --reload
 ```
 Open your browser at [http://127.0.0.1:8000](http://127.0.0.1:8000).
 
-Health check is available at [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health).
+Health check is available at [http://127.0.0.1:8000/health](http://127.0.0.1:8000/health) (reports provider name, model name, and `gemini_api_configured` boolean status, never the key).
+
+---
+
+## 💡 Future Ideas
+
+- **Adding a Claude option**: Provide multi-provider support with an option to generate quizzes using Anthropic Claude models alongside Gemini.
+- **Saved History**: Optional local storage or database persistence for reviewing past quizzes and tracking revision progress over time.
+- **Flashcard Export**: Export generated quizzes and explanations to Anki decks or printable study sheets.
 
 ---
 
@@ -88,9 +97,9 @@ Health check is available at [http://127.0.0.1:8000/health](http://127.0.0.1:800
 
 ```
 study-quiz-maker/
-├── main.py                     # FastAPI application & API endpoints
-├── requirements.txt           # Python dependencies
-├── .env.example               # Template environment configuration
+├── main.py                     # FastAPI application & Gemini API endpoints
+├── requirements.txt           # Python dependencies (google-genai, fastapi, etc.)
+├── .env.example               # Template environment configuration (placeholders only)
 ├── .gitignore                 # Git ignore rules (.env, venv, caches)
 ├── LICENSE                    # MIT License
 ├── README.md                  # Project documentation & status
@@ -114,8 +123,8 @@ study-quiz-maker/
 - [x] **Phase 0: Visual Assets** — Section images (Home, Paste Notes, Quiz, Score) for Desktop (16:9) & Mobile (9:16).
 - [x] **Phase 4: Image Frontend** — Section layout with dark teal overlay & smooth scroll transitions.
 - [x] **Phase 5: Homepage & Navigation** — Hero, How it works, responsive layout inside safe zones.
-- [x] **Phase 6: Quiz Flow** — Server-side Claude generation endpoint, question player, instant feedback, scoring & retry.
-- [x] **Phase 10: UI Polish** — Typography (Fraunces & Inter), accessibility (WCAG AA, ARIA landmarks, keyboard 1-4 & Enter), error states.
+- [x] **Phase 6: Quiz Flow** — Server-side Gemini generation endpoint, question player, instant feedback, scoring & retry.
+- [x] **Phase 10: UI Polish** — Typography (Fraunces & Inter), accessibility (WCAG AA, ARIA landmarks, keyboard 1-4 & Enter), error states, demo mode indicators.
 - [x] **Phase 11: Testing & Validation** — Input edge cases, validation error handling, end-to-end browser verification.
 - [ ] **Phase 12: Deployment** — Production setup on Render / Vercel.
 

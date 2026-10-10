@@ -15,9 +15,18 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
 
 try:
-    import anthropic
+    from google import genai
+    from google.genai import errors as genai_errors
+    from google.genai import types as genai_types
 except ImportError:
-    anthropic = None
+    genai = None
+    genai_errors = None
+    genai_types = None
+
+try:
+    import httpx
+except ImportError:
+    httpx = None
 
 # Configure logging
 logging.basicConfig(level=logging.INFO, format="%(asctime)s - %(levelname)s - %(message)s")
@@ -27,9 +36,9 @@ logger = logging.getLogger("study-quiz-maker")
 load_dotenv()
 
 RATE_LIMIT_PER_HOUR = os.getenv("RATE_LIMIT_PER_HOUR", "10")
-CLAUDE_MODEL = os.getenv("CLAUDE_MODEL", "claude-3-5-sonnet-20241022")
+GEMINI_MODEL = os.getenv("GEMINI_MODEL", "gemini-3.5-flash-lite").strip()
 MAX_NOTES_CHARS = int(os.getenv("MAX_NOTES_CHARS", "6000"))
-ANTHROPIC_API_KEY = os.getenv("ANTHROPIC_API_KEY", "").strip()
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "").strip()
 
 # Initialize Rate Limiter
 limiter = Limiter(key_func=get_remote_address)
@@ -37,7 +46,7 @@ limiter = Limiter(key_func=get_remote_address)
 # Initialize FastAPI App
 app = FastAPI(
     title="Study Quiz Maker",
-    description="Turn study notes into multiple-choice practice quizzes with explanations using Claude API",
+    description="Turn study notes into multiple-choice practice quizzes with explanations using Google Gemini API",
     version="1.0.0",
 )
 app.state.limiter = limiter
@@ -94,10 +103,27 @@ class QuizResponse(BaseModel):
     num_questions: int
     difficulty: str
     questions: List[QuestionItem]
+    is_demo: bool = False
+
+
+# Schema models for strict structured output with google-genai SDK
+class GeminiQuestion(BaseModel):
+    id: int = Field(description="Question number starting from 1")
+    question: str = Field(description="The question prompt")
+    options: List[str] = Field(description="Exactly 4 distinct plausible options")
+    answer_index: int = Field(description="Integer index (0 to 3) of the correct option")
+    explanation: str = Field(description="Concise 1-3 sentences explaining why the correct answer is right and correcting misconceptions")
+
+
+class GeminiQuizPayload(BaseModel):
+    title: str = Field(description="Brief quiz title based on the notes")
+    questions: List[GeminiQuestion] = Field(description="List of multiple-choice questions")
 
 
 def clean_json_text(text: str) -> str:
     """Strip markdown code fences and whitespace from model output."""
+    if not text:
+        return ""
     text = text.strip()
     match = re.search(r"```(?:json)?\s*([\s\S]*?)\s*```", text)
     if match:
@@ -107,7 +133,7 @@ def clean_json_text(text: str) -> str:
 
 def generate_fallback_demo_quiz(notes: str, num_questions: int, difficulty: str) -> List[QuestionItem]:
     """
-    Fallback demo quiz generator used strictly when ANTHROPIC_API_KEY is not configured
+    Fallback demo quiz generator used strictly when GEMINI_API_KEY is not configured
     or during offline testing, allowing immediate interactive evaluation of the UI.
     """
     sample_pool = [
@@ -241,15 +267,16 @@ def generate_fallback_demo_quiz(notes: str, num_questions: int, difficulty: str)
 @app.get("/health", tags=["Health"])
 async def health_check():
     """Health check endpoint for monitoring."""
-    api_key_configured = bool(ANTHROPIC_API_KEY and ANTHROPIC_API_KEY != "your_anthropic_api_key_here")
+    api_key_configured = bool(GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here")
     return {
         "status": "healthy",
         "app": "Study Quiz Maker",
         "version": "1.0.0",
-        "model": CLAUDE_MODEL,
+        "provider": "Google Gemini",
+        "model": GEMINI_MODEL,
         "max_notes_chars": MAX_NOTES_CHARS,
         "rate_limit_per_hour": RATE_LIMIT_PER_HOUR,
-        "claude_api_configured": api_key_configured,
+        "gemini_api_configured": api_key_configured,
     }
 
 
@@ -258,7 +285,7 @@ async def health_check():
 async def generate_quiz(request: Request, payload: QuizRequest):
     """
     Generate multiple-choice practice quiz with 4 options, answer index, and explanations.
-    All AI generation happens securely on the server via Anthropic Claude API.
+    All AI generation happens securely on the server via Google Gemini API.
     """
     # Validate notes length against server MAX_NOTES_CHARS
     notes_clean = payload.notes.strip()
@@ -268,11 +295,12 @@ async def generate_quiz(request: Request, payload: QuizRequest):
             detail=f"Notes exceed the maximum allowed length of {MAX_NOTES_CHARS} characters (current: {len(notes_clean)}).",
         )
 
-    # Check if Claude API key is configured
-    api_key_configured = bool(ANTHROPIC_API_KEY and ANTHROPIC_API_KEY != "your_anthropic_api_key_here")
+    # Check if Gemini API key is configured
+    api_key_configured = bool(GEMINI_API_KEY and GEMINI_API_KEY != "your_gemini_api_key_here")
 
+    # Offline sample-quiz fallback only for when no key is set
     if not api_key_configured:
-        logger.warning("ANTHROPIC_API_KEY not configured. Falling back to structured demo quiz for local preview.")
+        logger.warning("GEMINI_API_KEY not configured. Falling back to structured demo quiz for local preview.")
         demo_questions = generate_fallback_demo_quiz(
             notes=notes_clean,
             num_questions=payload.num_questions,
@@ -284,39 +312,27 @@ async def generate_quiz(request: Request, payload: QuizRequest):
             num_questions=len(demo_questions),
             difficulty=payload.difficulty,
             questions=demo_questions,
+            is_demo=True,
         )
 
-    if not anthropic:
+    if not genai:
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The anthropic package is not installed on the server.",
+            detail="The google-genai package is not installed on the server.",
         )
 
-    # System prompt enforcing strict JSON schema
+    # System prompt enforcing pedagogical quality and strict JSON schema
     system_prompt = (
         "You are an expert pedagogical study quiz maker. Your job is to transform a student's study notes "
         "into high-quality multiple-choice questions for active recall practice.\n\n"
         "Guidelines:\n"
-        "- Generate exactly the requested number of multiple-choice questions based on the notes.\n"
+        f"- Generate exactly {payload.num_questions} multiple-choice questions based on the notes.\n"
         f"- Target difficulty level: {payload.difficulty.upper()}.\n"
         "- For each question, provide exactly 4 distinct plausible options (A, B, C, D).\n"
         "- Only ONE option must be clearly correct.\n"
         "- The 'answer_index' must be an integer from 0 to 3 corresponding to the correct option index.\n"
         "- The 'explanation' must be concise (1-3 sentences) explaining why the correct answer is right and correcting common misconceptions.\n"
-        "- Respond ONLY with valid, parseable JSON matching the following schema. Do NOT include markdown commentary outside the JSON block.\n\n"
-        "Schema:\n"
-        "{\n"
-        '  "title": "Brief quiz title based on the notes",\n'
-        '  "questions": [\n'
-        "    {\n"
-        '      "id": 1,\n'
-        '      "question": "Question text here?",\n'
-        '      "options": ["Option 1", "Option 2", "Option 3", "Option 4"],\n'
-        '      "answer_index": 0,\n'
-        '      "explanation": "Clear explanation of the correct answer."\n'
-        "    }\n"
-        "  ]\n"
-        "}"
+        "- Respond ONLY with valid, parseable JSON conforming to the schema. Do NOT include markdown commentary outside the JSON structure."
     )
 
     user_prompt = (
@@ -324,100 +340,140 @@ async def generate_quiz(request: Request, payload: QuizRequest):
         f"from these study notes:\n\n---\n{notes_clean}\n---"
     )
 
-    try:
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, base_url="https://api.anthropic.com")
-        response = client.messages.create(
-            model=CLAUDE_MODEL,
-            max_tokens=2500,
-            temperature=0.3,
-            system=system_prompt,
-            messages=[{"role": "user", "content": user_prompt}],
-        )
+    client = genai.Client(api_key=GEMINI_API_KEY)
+    config = genai_types.GenerateContentConfig(
+        system_instruction=system_prompt,
+        response_mime_type="application/json",
+        response_schema=GeminiQuizPayload,
+    )
 
-        raw_output = response.content[0].text
-        cleaned_json = clean_json_text(raw_output)
-        data = json.loads(cleaned_json)
+    # Strict JSON output with retry once on bad JSON / invalid schema
+    last_parse_error = None
+    for attempt in range(2):
+        try:
+            response = client.models.generate_content(
+                model=GEMINI_MODEL,
+                contents=user_prompt,
+                config=config,
+            )
 
-        quiz_title = data.get("title", "Study Practice Quiz")
-        raw_questions = data.get("questions", [])
+            raw_output = getattr(response, "text", "") or ""
+            if not raw_output:
+                raise ValueError("Model returned an empty response")
 
-        if not isinstance(raw_questions, list) or len(raw_questions) == 0:
-            raise ValueError("Response does not contain a valid questions list")
+            cleaned_json = clean_json_text(raw_output)
+            data = json.loads(cleaned_json)
 
-        validated_questions: List[QuestionItem] = []
-        for idx, q in enumerate(raw_questions, start=1):
-            q_text = str(q.get("question", "")).strip()
-            options = q.get("options", [])
-            answer_idx = int(q.get("answer_index", 0))
-            explanation = str(q.get("explanation", "")).strip()
+            quiz_title = data.get("title", "Study Practice Quiz")
+            raw_questions = data.get("questions", [])
 
-            if not q_text or len(options) != 4 or answer_idx not in (0, 1, 2, 3):
-                logger.warning("Skipping invalid question item: %s", q)
-                continue
+            if not isinstance(raw_questions, list) or len(raw_questions) == 0:
+                raise ValueError("Response does not contain a valid questions list")
 
-            validated_questions.append(
-                QuestionItem(
-                    id=idx,
-                    question=q_text,
-                    options=[str(opt).strip() for opt in options],
-                    answer_index=answer_idx,
-                    explanation=explanation or "The selected answer directly corresponds to the notes.",
+            validated_questions: List[QuestionItem] = []
+            for idx, q in enumerate(raw_questions, start=1):
+                q_text = str(q.get("question", "")).strip()
+                options = q.get("options", [])
+                try:
+                    answer_idx = int(q.get("answer_index", 0))
+                except (ValueError, TypeError):
+                    continue
+                explanation = str(q.get("explanation", "")).strip()
+
+                if not q_text or len(options) != 4 or answer_idx not in (0, 1, 2, 3):
+                    logger.warning("Skipping invalid question item: %s", q)
+                    continue
+
+                validated_questions.append(
+                    QuestionItem(
+                        id=idx,
+                        question=q_text,
+                        options=[str(opt).strip() for opt in options],
+                        answer_index=answer_idx,
+                        explanation=explanation or "The selected answer directly corresponds to the notes.",
+                    )
                 )
+
+            if not validated_questions:
+                raise ValueError("No valid questions could be extracted from Gemini response")
+
+            return QuizResponse(
+                quiz_id=f"quiz-{os.urandom(4).hex()}",
+                title=quiz_title,
+                num_questions=len(validated_questions),
+                difficulty=payload.difficulty,
+                questions=validated_questions,
+                is_demo=False,
             )
 
-        if not validated_questions:
-            raise ValueError("No valid questions could be extracted from Claude's response")
-
-        return QuizResponse(
-            quiz_id=f"quiz-{os.urandom(4).hex()}",
-            title=quiz_title,
-            num_questions=len(validated_questions),
-            difficulty=payload.difficulty,
-            questions=validated_questions,
-        )
-
-    except anthropic.BadRequestError as exc:
-        logger.error("Claude API bad request: %s", exc)
-        err_msg = str(exc)
-        if "credit balance is too low" in err_msg.lower():
+        except (json.JSONDecodeError, ValueError) as exc:
+            last_parse_error = exc
+            if attempt == 0:
+                logger.warning("Failed to parse Gemini output as JSON on attempt 1, retrying once: %s", exc)
+                continue
+            logger.error("Failed to parse Gemini output as JSON after retry: %s", exc)
             raise HTTPException(
-                status_code=status.HTTP_402_PAYMENT_REQUIRED,
-                detail="Your Anthropic account has a $0.00 credit balance. Please add funds at console.anthropic.com (Plans & Billing) to generate quizzes with Claude.",
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="The AI model generated an invalid quiz format. Please try again or rephrase your notes.",
             )
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail=f"Claude API request error: {exc.message}",
-        )
-    except anthropic.APIConnectionError as exc:
-        logger.error("Claude API connection error: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail="Could not reach the Claude API. Please check your network connection and retry.",
-        )
-    except anthropic.RateLimitError as exc:
-        logger.error("Claude API rate limit reached: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail="Claude API rate limit reached. Please wait a minute before generating again.",
-        )
-    except anthropic.APIStatusError as exc:
-        logger.error("Claude API error status %s: %s", exc.status_code, exc.message)
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=f"Claude API returned an error ({exc.status_code}): {exc.message}",
-        )
-    except (json.JSONDecodeError, ValueError) as exc:
-        logger.error("Failed to parse Claude output as JSON: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="The AI model generated an invalid quiz format. Please try again or rephrase your notes.",
-        )
-    except Exception as exc:
-        logger.exception("Unexpected error during quiz generation: %s", exc)
-        raise HTTPException(
-            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail="An unexpected error occurred while generating your quiz. Please try again.",
-        )
+        except genai_errors.APIError as exc:
+            code = getattr(exc, "code", None)
+            status_val = getattr(exc, "status", None)
+            msg = getattr(exc, "message", str(exc))
+            details = getattr(exc, "details", {})
+            logger.error("Gemini API error (code: %s, status: %s)", code, status_val)
+
+            # Friendly error handling
+            # Missing or invalid API key
+            if code in (400, 401, 403) and (
+                "api_key" in str(msg).lower()
+                or "api key" in str(msg).lower()
+                or "api_key_invalid" in str(details).lower()
+            ):
+                raise HTTPException(
+                    status_code=status.HTTP_401_UNAUTHORIZED,
+                    detail="Invalid Gemini API key. Please check GEMINI_API_KEY in your .env configuration.",
+                )
+
+            # Rate limit
+            if code == 429 or status_val == "RESOURCE_EXHAUSTED" or "quota" in str(msg).lower() or "rate limit" in str(msg).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_429_TOO_MANY_REQUESTS,
+                    detail="Gemini API rate limit reached. Please wait a minute before generating again.",
+                )
+
+            # Model not found
+            if code == 404 or status_val == "NOT_FOUND" or "not found" in str(msg).lower():
+                raise HTTPException(
+                    status_code=status.HTTP_404_NOT_FOUND,
+                    detail=f"The requested Gemini model '{GEMINI_MODEL}' was not found. Please check GEMINI_MODEL in your environment variables.",
+                )
+
+            raise HTTPException(
+                status_code=status.HTTP_502_BAD_GATEWAY,
+                detail=f"Gemini API returned an error ({code or 'unknown'}): {msg}",
+            )
+        except Exception as exc:
+            # Check for network or connection errors
+            exc_name = type(exc).__name__
+            is_network = False
+            if httpx and isinstance(exc, (httpx.RequestError, httpx.TimeoutException)):
+                is_network = True
+            elif "ConnectionError" in exc_name or "Timeout" in exc_name or "Network" in exc_name or "socket" in str(type(exc)).lower():
+                is_network = True
+
+            if is_network:
+                logger.error("Network error reaching Gemini API: %s", exc_name)
+                raise HTTPException(
+                    status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                    detail="Could not reach the Gemini API. Please check your network connection and retry.",
+                )
+
+            logger.exception("Unexpected error during quiz generation: %s", exc_name)
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="An unexpected error occurred while generating your quiz. Please try again.",
+            )
 
 
 @app.get("/", response_class=HTMLResponse, tags=["Home"])

@@ -65,6 +65,7 @@ Key Factors and Innovations:
     quizPlayerView: document.getElementById("quiz-player-view"),
     qCounterText: document.getElementById("q-counter-text"),
     qDifficultyBadge: document.getElementById("q-difficulty-badge"),
+    demoModeBadge: document.getElementById("demo-mode-badge"),
     quizProgressFill: document.getElementById("quiz-progress-fill"),
     questionText: document.getElementById("question-text"),
     optionsContainer: document.getElementById("options-container"),
@@ -76,6 +77,7 @@ Key Factors and Innovations:
     finalTotalVal: document.getElementById("final-total-val"),
     scoreSubmessage: document.getElementById("score-submessage"),
     retryBtn: document.getElementById("retry-btn"),
+    scoreDemoBadge: document.getElementById("score-demo-badge"),
     reviewToggleBtn: document.getElementById("review-toggle-btn"),
     reviewChevron: document.getElementById("review-chevron"),
     reviewList: document.getElementById("review-list"),
@@ -292,6 +294,18 @@ Key Factors and Innovations:
       dom.qDifficultyBadge.textContent = (state.currentQuiz.difficulty || state.difficulty).toUpperCase();
     }
 
+    // Toggle Demo Mode badge
+    const isDemo = Boolean(
+      state.currentQuiz && (
+        state.currentQuiz.is_demo ||
+        (state.currentQuiz.quiz_id && state.currentQuiz.quiz_id.startsWith("demo-")) ||
+        (state.currentQuiz.title && state.currentQuiz.title.includes("Demo Mode"))
+      )
+    );
+    if (dom.demoModeBadge) {
+      dom.demoModeBadge.style.display = isDemo ? "inline-flex" : "none";
+    }
+
     // Progress bar
     if (dom.quizProgressFill) {
       const pct = (qIndex / questions.length) * 100;
@@ -436,6 +450,11 @@ Key Factors and Innovations:
     }
 
     if (dom.scoreSubmessage) dom.scoreSubmessage.textContent = subMsg;
+
+    // Toggle Demo Mode badge on score screen
+    if (dom.scoreDemoBadge) {
+      dom.scoreDemoBadge.style.display = isDemo ? "inline-flex" : "none";
+    }
 
     // Build Detailed Review Breakdown
     buildReviewList();

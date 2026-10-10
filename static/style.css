@@ -650,6 +650,39 @@ body {
   letter-spacing: 0.05em;
 }
 
+.quiz-meta-tags {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+}
+
+.score-header-row {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.6rem;
+  margin-bottom: 1.25rem;
+}
+
+.score-header-row .score-badge {
+  margin-bottom: 0;
+}
+
+.demo-mode-badge {
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 0.2rem 0.65rem;
+  border-radius: var(--radius-pill);
+  background: rgba(230, 180, 34, 0.2);
+  color: #ffd98a;
+  border: 1px solid rgba(230, 180, 34, 0.45);
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+}
+
 .difficulty-badge {
   font-size: 0.75rem;
   font-weight: 600;
