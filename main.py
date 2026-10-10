@@ -325,7 +325,7 @@ async def generate_quiz(request: Request, payload: QuizRequest):
     )
 
     try:
-        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY)
+        client = anthropic.Anthropic(api_key=ANTHROPIC_API_KEY, base_url="https://api.anthropic.com")
         response = client.messages.create(
             model=CLAUDE_MODEL,
             max_tokens=2500,
@@ -376,6 +376,18 @@ async def generate_quiz(request: Request, payload: QuizRequest):
             questions=validated_questions,
         )
 
+    except anthropic.BadRequestError as exc:
+        logger.error("Claude API bad request: %s", exc)
+        err_msg = str(exc)
+        if "credit balance is too low" in err_msg.lower():
+            raise HTTPException(
+                status_code=status.HTTP_402_PAYMENT_REQUIRED,
+                detail="Your Anthropic account has a $0.00 credit balance. Please add funds at console.anthropic.com (Plans & Billing) to generate quizzes with Claude.",
+            )
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail=f"Claude API request error: {exc.message}",
+        )
     except anthropic.APIConnectionError as exc:
         logger.error("Claude API connection error: %s", exc)
         raise HTTPException(
