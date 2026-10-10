@@ -111,13 +111,13 @@ study-quiz-maker/
 ## 🧭 Implementation Status (Doc 07)
 
 - [x] **Phase 1: Setup** — Virtual environment, FastAPI app, dependencies, configuration, skeleton & health check.
-- [ ] **Phase 0: Visual Assets** — Section images (Home, Paste Notes, Quiz, Score) for Desktop & Mobile.
-- [ ] **Phase 4: Image Frontend** — Section layout with dark teal overlay & smooth scroll transitions.
-- [ ] **Phase 5: Homepage & Navigation** — Hero, How it works, responsive layout.
-- [ ] **Phase 6: Quiz Flow** — Server-side Claude generation endpoint, question player, instant feedback, scoring & retry.
-- [ ] **Phase 10: UI Polish** — Typography, accessibility, error states.
-- [ ] **Phase 11: Testing & Validation** — Input edge cases, JSON validation, rate limit tests.
-- [ ] **Phase 12: Deployment** — Production setup.
+- [x] **Phase 0: Visual Assets** — Section images (Home, Paste Notes, Quiz, Score) for Desktop (16:9) & Mobile (9:16).
+- [x] **Phase 4: Image Frontend** — Section layout with dark teal overlay & smooth scroll transitions.
+- [x] **Phase 5: Homepage & Navigation** — Hero, How it works, responsive layout inside safe zones.
+- [x] **Phase 6: Quiz Flow** — Server-side Claude generation endpoint, question player, instant feedback, scoring & retry.
+- [x] **Phase 10: UI Polish** — Typography (Fraunces & Inter), accessibility (WCAG AA, ARIA landmarks, keyboard 1-4 & Enter), error states.
+- [x] **Phase 11: Testing & Validation** — Input edge cases, validation error handling, end-to-end browser verification.
+- [ ] **Phase 12: Deployment** — Production setup on Render / Vercel.
 
 ---
 

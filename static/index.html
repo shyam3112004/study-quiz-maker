@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Study Quiz Maker - Turn lecture notes, textbook summaries, or syllabus topics into active recall practice quizzes with instant explanations. Free, private, and fast.">
+  <meta name="theme-color" content="#0B1F23">
+  <title>Study Quiz Maker | Paste your notes. Get a quiz. Learn faster.</title>
+  <link rel="stylesheet" href="/static/style.css">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220%22%20%220%22%20%22100%22%20%22100%22><text y=%22.9em%22 font-size=%2290%22>📚</text></svg>">
+</head>
+<body>
+
+  <!-- Top Header Navigation -->
+  <header class="app-header" id="app-header">
+    <a href="#home" class="brand" id="brand-logo" aria-label="Study Quiz Maker Home">
+      <div class="brand-icon">
+        <svg viewBox="0 0 24 24">
+          <path d="M12 3L1 9l4 2.18v6L12 21l7-3.82v-6l2-1.09V17h2V9L12 3zm6.82 6L12 12.72 5.18 9 12 5.28 18.82 9zM17 15.99l-5 2.73-5-2.73v-3.72L12 15l5-2.73v3.72z"/>
+        </svg>
+      </div>
+      <span class="brand-name">Study Quiz Maker</span>
+      <span class="brand-tag">v1 Free</span>
+    </a>
+
+    <nav aria-label="Main Navigation">
+      <ul class="nav-links">
+        <li><a href="#home" class="nav-link">Home</a></li>
+        <li><a href="#paste" class="nav-link">Create Quiz</a></li>
+        <li><a href="#quiz" class="nav-link">Practice</a></li>
+        <li><a href="#paste" class="btn btn-primary" id="nav-cta-btn">Make My Quiz &rarr;</a></li>
+      </ul>
+    </nav>
+  </header>
+
+  <main>
+    <!-- SECTION 1: HOME / HERO -->
+    <section id="home" class="section hero-section" aria-labelledby="hero-title">
+      <div class="safe-zone hero-content">
+        <div class="badge-pill">
+          <span>✨ Active Recall &bull; Instant Explanations &bull; Free v1</span>
+        </div>
+        <h1 id="hero-title" class="hero-title">
+          Paste your notes.<br>
+          Get a quiz.<br>
+          <span class="highlight">Learn faster.</span>
+        </h1>
+        <p class="hero-desc">
+          Transform any notes, textbook summary, or syllabus topic into an intelligent multiple-choice practice quiz with detailed explanations in seconds.
+        </p>
+
+        <div class="hero-actions">
+          <a href="#paste" class="btn btn-primary btn-large" id="hero-cta-btn">
+            Make My Quiz &rarr;
+          </a>
+          <button type="button" class="btn btn-ghost" id="quick-demo-btn">
+            Try Sample Notes
+          </button>
+        </div>
+
+        <div class="steps-strip">
+          <div class="step-item">
+            <div class="step-num">01 &bull; PASTE</div>
+            <div class="step-text">Drop in syllabus notes or lecture key points.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">02 &bull; CUSTOMIZE</div>
+            <div class="step-text">Pick 3 to 10 questions and difficulty level.</div>
+          </div>
+          <div class="step-item">
+            <div class="step-num">03 &bull; MASTER</div>
+            <div class="step-text">Get immediate rationale for every option.</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 2: PASTE NOTES -->
+    <section id="paste" class="section paste-section" aria-labelledby="paste-title">
+      <div class="safe-zone paste-container">
+        <div class="glass-card paste-card" id="paste-card">
+          <div class="card-header">
+            <h2 id="paste-title" class="card-title">Build your quiz</h2>
+            <p class="card-subtitle">Paste your study notes or choose a quick sample below.</p>
+          </div>
+
+          <!-- Sample Notes Chips -->
+          <div class="sample-pills-row">
+            <span class="sample-label">Quick samples:</span>
+            <button type="button" class="sample-chip" data-sample="biology" id="sample-bio-btn">🌿 Photosynthesis</button>
+            <button type="button" class="sample-chip" data-sample="cs" id="sample-cs-btn">💻 Big-O Notation</button>
+            <button type="button" class="sample-chip" data-sample="history" id="sample-history-btn">🏛️ Industrial Revolution</button>
+          </div>
+
+          <!-- Notes Textarea -->
+          <div class="textarea-wrapper">
+            <textarea
+              id="notes-input"
+              class="notes-textarea"
+              placeholder="Paste lecture notes, study outline, or topic summary here (minimum 20 characters)..."
+              rows="6"
+              aria-label="Study notes input"
+            ></textarea>
+            <div class="char-counter" id="char-counter-bar">
+              <span id="char-count">0</span> / <span id="char-max">6000</span> characters
+              <span id="char-min-hint">(min 20)</span>
+            </div>
+          </div>
+
+          <!-- Controls: Questions & Difficulty -->
+          <div class="settings-grid">
+            <div class="setting-group">
+              <label class="setting-label">Questions</label>
+              <div class="pill-group" id="q-count-group" role="radiogroup" aria-label="Number of questions">
+                <div class="pill-option" data-value="3" tabindex="0" role="radio" aria-checked="false">3</div>
+                <div class="pill-option active" data-value="5" tabindex="0" role="radio" aria-checked="true">5</div>
+                <div class="pill-option" data-value="8" tabindex="0" role="radio" aria-checked="false">8</div>
+                <div class="pill-option" data-value="10" tabindex="0" role="radio" aria-checked="false">10</div>
+              </div>
+            </div>
+
+            <div class="setting-group">
+              <label class="setting-label">Difficulty</label>
+              <div class="pill-group" id="difficulty-group" role="radiogroup" aria-label="Quiz difficulty">
+                <div class="pill-option" data-value="easy" tabindex="0" role="radio" aria-checked="false">Easy</div>
+                <div class="pill-option active" data-value="medium" tabindex="0" role="radio" aria-checked="true">Medium</div>
+                <div class="pill-option" data-value="hard" tabindex="0" role="radio" aria-checked="false">Hard</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Error / Feedback Banner -->
+          <div class="feedback-banner" id="paste-feedback" role="alert" aria-live="polite"></div>
+
+          <!-- Action Button -->
+          <button type="button" class="btn btn-primary btn-block btn-large" id="generate-btn">
+            <span id="generate-btn-text">Generate Quiz &rarr;</span>
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 3: QUIZ PLAYER -->
+    <section id="quiz" class="section quiz-section" aria-labelledby="quiz-section-title">
+      <div class="safe-zone quiz-container">
+        <div class="glass-card quiz-card" id="quiz-main-card">
+
+          <!-- Empty State -->
+          <div class="quiz-empty" id="quiz-empty-view">
+            <h2 id="quiz-section-title" class="card-title">Practice Quiz</h2>
+            <p>Paste notes in the section above and click "Generate Quiz" to begin your active recall session.</p>
+            <a href="#paste" class="btn btn-primary">Go to notes &uarr;</a>
+          </div>
+
+          <!-- Loading State -->
+          <div class="quiz-loading" id="quiz-loading-view" style="display: none;">
+            <div class="spinner"></div>
+            <h3>Generating your quiz...</h3>
+            <p>Analyzing key concepts, drafting plausible options, and generating pedagogical explanations.</p>
+          </div>
+
+          <!-- Active Quiz Player View -->
+          <div class="quiz-player" id="quiz-player-view" style="display: none;" aria-live="polite">
+            <div class="quiz-player-header">
+              <div class="quiz-meta-row">
+                <span class="q-badge" id="q-counter-text">Question 1 of 5</span>
+                <span class="difficulty-badge" id="q-difficulty-badge">Medium</span>
+              </div>
+              <div class="progress-track">
+                <div class="progress-fill" id="quiz-progress-fill"></div>
+              </div>
+            </div>
+
+            <h3 class="question-prompt" id="question-text">
+              <!-- Question string injected by JS -->
+            </h3>
+
+            <!-- 4 Multiple Choice Options -->
+            <div class="options-list" id="options-container" role="radiogroup" aria-label="Question options">
+              <!-- Dynamic option buttons injected by JS -->
+            </div>
+
+            <!-- Instant Feedback / Explanation Card -->
+            <div class="explanation-card" id="explanation-box" aria-live="assertive">
+              <div class="exp-title" id="exp-status-title">Explanation</div>
+              <p class="exp-text" id="exp-content"></p>
+            </div>
+
+            <div class="quiz-action-bar">
+              <span class="keyboard-hint">Press 1-4 to pick answer &bull; Enter for next</span>
+              <button type="button" class="btn btn-primary" id="next-btn" disabled>
+                Next Question &rarr;
+              </button>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+    <!-- SECTION 4: SCORE & REVIEW -->
+    <section id="score" class="section score-section" aria-labelledby="score-title">
+      <div class="safe-zone score-container">
+        <div class="glass-card score-card" id="score-card">
+          <div class="score-badge">Session Summary</div>
+          
+          <div class="score-display">
+            <span class="score-number" id="final-score-val">0</span>
+            <span class="score-denom" id="final-total-val">/ 0</span>
+          </div>
+
+          <h2 id="score-title" class="score-message">Quiz Complete!</h2>
+          <p class="score-submessage" id="score-submessage">
+            Here is your final score based on active recall testing.
+          </p>
+
+          <div class="score-actions">
+            <button type="button" class="btn btn-primary" id="retry-btn">
+              🔄 Retake Quiz
+            </button>
+            <a href="#paste" class="btn btn-secondary" id="new-notes-btn">
+              ✍️ New Notes
+            </a>
+            <a href="#home" class="btn btn-ghost">
+              &uarr; Back to Top
+            </a>
+          </div>
+
+          <!-- Detailed Review Accordion -->
+          <div class="review-section">
+            <button type="button" class="review-toggle-btn" id="review-toggle-btn" aria-expanded="false">
+              <span>View detailed answer breakdown</span>
+              <span id="review-chevron">▼</span>
+            </button>
+            <div class="review-list" id="review-list">
+              <!-- Injected by JS -->
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </section>
+  </main>
+
+  <script src="/static/app.js"></script>
+</body>
+</html>
